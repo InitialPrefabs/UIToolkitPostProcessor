@@ -24,7 +24,7 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
                 var keywords = Keywords[i];
                 ProcessPairs(ref pairs, keywords);
                 var text = ScribanTemplate.Render(new { Name = fileName, Pairs = pairs });
-                File.WriteAllText(Path.Combine(OutputDirectory, $"{fileName}.cs"), text);
+                File.WriteAllText(Path.Combine(OutputDirectory, $"{fileName}.g.cs"), text);
             }
         }
 

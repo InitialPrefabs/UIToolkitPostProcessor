@@ -1,3 +1,5 @@
+// THIS IS CODE GENERATED! Any changes done to this file manually, can and WILL get overriden by the CodeGenerator.
+
 namespace InitialPrefabs.UIToolkit.Constants {
     public static class {{ name }} {
         {{ for pair in pairs -}}

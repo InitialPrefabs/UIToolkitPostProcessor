@@ -1,8 +1,7 @@
-using NUnit.Framework;
+using InitialPrefabs.TaskExtensions;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -12,97 +11,146 @@ using UnityEngine.UIElements;
 
 namespace InitialPrefabs.UIToolkit.PostProcessor {
 
-    class TaskWorker {
+    struct GenerateJsonTask : ITask {
+        public List<string>[] Keywords;
+        public List<string> FileNames;
+        public StringBuilder StringBuilder;
+        public string OutputPath;
 
+        public void Execute() {
+            using (var json = new JsonScope(StringBuilder)) {
+                for (var i = 0; i < FileNames.Count; i++) {
+                    var fileName = FileNames[i];
+                    var keywords = Keywords[i];
+                    json
+                        .Variable(fileName)
+                        .Array(keywords);
+                }
+                json.Pop();
+            }
+            File.WriteAllText(OutputPath, StringBuilder.ToString(), Encoding.ASCII);
+        }
+
+        private readonly ref struct JsonScope {
+            private readonly StringBuilder sb;
+
+            public JsonScope(StringBuilder sb) {
+                this.sb = sb;
+                sb.Append('{');
+            }
+
+            public readonly JsonScope Variable(string name) {
+                sb.Append('"').Append(name).Append('\"').Append(':');
+                return this;
+            }
+
+            public readonly JsonScope Array(IReadOnlyList<string> collection) {
+                sb.Append('[');
+                foreach (var element in collection) {
+                    sb.Append('"').Append(element).Append('"').Append(',');
+                }
+                Pop();
+                sb.Append(']').Append(',');
+                return this;
+            }
+
+            public readonly JsonScope Pop() {
+                sb.Remove(sb.Length - 1, 1);
+                return this;
+            }
+
+            public void Dispose() {
+                sb.Append('}');
+            }
+        }
     }
 
     public class UIDocumentProcessor : AssetPostprocessor {
         static readonly StringBuilder Builder = new StringBuilder(512);
         static readonly List<XmlDocument> Documents = new List<XmlDocument>(5);
+        static readonly List<string> FileNames = new List<string>(5);
+        // private static readonly string AdditionalFilesTag = $"<AdditionalFiles Include=\"{Application.dataPath}/Generated/TextData.json\" />";
+
+        // private static bool DidImportCsFiles(ReadOnlySpan<string> importedAssets) {
+        //     foreach (ref readonly var asset in importedAssets) {
+        //         if (asset.SimpleEndsWith(".cs")) {
+        //             return true;
+        //         }
+        //     }
+        //     return false;
+        // }
+
+        // private static Task ModifyCsProjFiles() {
+        //     var projectRoot = Directory.GetParent(Application.dataPath).FullName;
+        //     var csProjs = Directory.GetFiles(projectRoot, "*.csproj");
+        //     var tasks = new List<Task>(csProjs.Length);
+
+        //     foreach (var csProj in csProjs) {
+        //         string content = File.ReadAllText(csProj);
+        //         if (!content.Contains(AdditionalFilesTag)) {
+        //             content = content.Replace("</ItemGroup>", $"{AdditionalFilesTag}\n</ItemGroup>");
+        //             tasks.Add(File.WriteAllTextAsync(csProj, content));
+        //         }
+        //     }
+        //     Debug.Log($"Modifying {tasks.Count} cs project files!");
+        //     return Task.WhenAll(tasks);
+        // }
+
+        [MenuItem("Tools/Print")]
+        private static void Print() {
+            Debug.Log("Test");
+            // Debug.Log(ExampleSourceGenerated.ExampleSourceGenerated.GetTestText());
+        }
+
         private static async void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths, bool didDomainReload) {
             Log("IMPORTED: ", importedAssets);
             Log("DELETED: ", deletedAssets);
             Log("MOVED: ", movedAssets);
             Log("MOVED FROM: ", movedFromAssetPaths);
 
-            Documents.Clear();
-            LoadXmlDocs(importedAssets, Documents);
+            // if (DidImportCsFiles(new ReadOnlySpan<string>(importedAssets))) {
+            //     await ModifyCsProjFiles();
+            // }
 
-        }
+            TaskHelper.Flush();
+            LoadXmlDocs(importedAssets, Documents, FileNames);
+            if (Documents.Count > 0) {
+                var keywords = new List<string>[Documents.Count];
 
-        private static void GetValidFileIndices(string[] importAssets, ref Span<int> validIndices, ref int count) {
-            for (var i = 0; i < importAssets.Length; i++) {
-                var file = importAssets[i];
-                if (file.SimpleEndsWith(".uxml")) {
-                    validIndices[count++] = i;
+                await new XmlParser {
+                    Documents = Documents,
+                    Keywords = keywords
+                }.Schedule(Documents.Count, 16);
+
+                var sb = new StringBuilder(1024);
+                var path = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Assets", "Generated", "TextData.UIToolkitSourceGenerators.additionalfile");
+                if (!AssetDatabase.IsValidFolder("Assets/Generated")) {
+                    AssetDatabase.CreateFolder("Assets", "Generated");
                 }
+
+                await new GenerateJsonTask {
+                    StringBuilder = sb,
+                    Keywords = keywords,
+                    FileNames = FileNames,
+                    OutputPath = path
+                }.Schedule();
+
+                AssetDatabase.Refresh();
             }
         }
 
-        private static void LoadXmlDocs(string[] importedAssets, List<XmlDocument> documents) {
+        private static void LoadXmlDocs(string[] importedAssets, List<XmlDocument> documents, List<string> fileNames) {
             documents.Clear();
+            fileNames.Clear();
             foreach (var path in importedAssets) {
                 if (path.SimpleEndsWith(".uxml")) {
-                    var doc = new XmlDocument();
-                    doc.Load(FileUtils.AbsolutePath(path));
-                    documents.Add(doc);
-                    // TODO: Stash some metadata so we know what names will need to be added to a document.
-                }
-            }
-        }
-
-        private static async void PrepareThreadWorkloads(IReadOnlyList<XmlDocument> documents, int threadCount) {
-            var tasks = new Task[threadCount];
-            var sliceSize = documents.Count / threadCount;
-            var span = new (int startIndex, int length)[threadCount];
-
-            for (var i = 0; i < threadCount; i++) {
-                span[i] = (i * sliceSize, i == threadCount - 1 ? documents.Count - i * sliceSize : sliceSize);
-            }
-
-            for (var i = 0; i < threadCount; i++) {
-                tasks[i] = Task.Factory.StartNew(() => {
-                    (var startIndex, var length) = span[i];
-
-                    for (var j = 0; j < length; j++) {
-                        var offset = startIndex + j;
-                        var xml = documents[offset];
-                        Recurse(xml, node => {
-                            foreach (XmlNode attribute in node.Attributes) {
-                                if (attribute.Name == "name") {
-                                    // TODO: Store the value into a map, maybe add a hierarchial output, because I want to generate a source file per XML doc
-                                }
-                            }
-                        });
-                    }
-                });
-            }
-
-            await Task.WhenAll(tasks);
-        }
-
-        private static void ProcessUXMLFiles(string[] importedAssets, Span<int> validIndices, int count) {
-            for (var i = 0; i < count; i++) {
-                var assetPath = importedAssets[validIndices[i]];
-                Option<VisualTreeAsset>.Some(AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(assetPath)).Ok(document => {
-                    var xml = new XmlDocument();
-                    xml.Load(FileUtils.AbsolutePath(assetPath));
-
-                    // TODO: Launch multiple threads on the # of valid files
-                    Recurse(xml, node => {
-                        Debug.Log($"Attribute for: {node.Name}");
-                        foreach (XmlNode attribute in node.Attributes) {
-                            Debug.Log($"Key: {attribute.Name}, Value: {attribute.Value}");
-                        }
+                    new Option<VisualTreeAsset>(AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path)).Ok(treeAsset => {
+                        var doc = new XmlDocument();
+                        doc.Load(FileUtils.AbsolutePath(path));
+                        documents.Add(doc);
+                        fileNames.Add(treeAsset.name);
                     });
-                });
-            }
-        }
-
-        private static void Recurse(XmlNode node, Action<XmlNode> onNode) {
-            foreach (XmlNode c in node.ChildNodes) {
-                onNode?.Invoke(c);
-                Recurse(c, onNode);
+                }
             }
         }
 

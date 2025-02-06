@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Xml;
 
 namespace InitialPrefabs.UIToolkit.PostProcessor {
-    internal struct XmlParser : ITaskParallelFor {
+    internal struct XmlParserTask : ITaskParallelFor {
 
         public IReadOnlyList<XmlDocument> Documents;
         public List<string>[] Keywords;

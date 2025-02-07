@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace InitialPrefabs.UIToolkit.PostProcessor {
     [InitializeOnLoad]
-    public class EnvironmentSetup {
+    internal class EnvironmentSetup {
         static EnvironmentSetup() {
             Initialize();
         }
@@ -20,6 +20,14 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
                 var settings = ScriptableObject.CreateInstance<GeneratorSettings>();
                 AssetDatabase.CreateAsset(settings, "Assets/Settings/GeneratorSettings.asset");
             }
+        }
+
+        public static Option<GeneratorSettings> TryGetGeneratorSettings() {
+            var guids = AssetDatabase.FindAssets("t: GeneratorSettings GeneratorSettings");
+            if (guids.Length > 0) {
+                return Option<GeneratorSettings>.Some(AssetDatabase.LoadAssetAtPath<GeneratorSettings>(AssetDatabase.GUIDToAssetPath(guids[0])));
+            }
+            return default;
         }
     }
 }

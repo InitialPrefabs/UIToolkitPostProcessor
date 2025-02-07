@@ -13,7 +13,7 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
         static readonly List<XmlDocument> Documents = new List<XmlDocument>(5);
         static readonly List<string> FileNames = new List<string>(5);
 
-        private static bool TryFindScribanEnumTemplate(out TextAsset textAsset) {
+        public static bool TryFindScribanEnumTemplate(out TextAsset textAsset) {
             var guids = AssetDatabase.FindAssets("t: TextAsset PostProcessedEnums");
             foreach (var guid in guids) {
                 var txtAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(AssetDatabase.GUIDToAssetPath(guid));
@@ -26,24 +26,16 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
             return false;
         }
 
-        private static Option<GeneratorSettings> TryGetGeneratorSettings() {
-            var guids = AssetDatabase.FindAssets("t: GeneratorSettings GeneratorSettings");
-            if (guids.Length > 0) {
-                return Option<GeneratorSettings>.Some(AssetDatabase.LoadAssetAtPath<GeneratorSettings>(AssetDatabase.GUIDToAssetPath(guids[0])));
-            }
-            return default;
-        }
-
         private static async void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths, bool didDomainReload) {
             TaskHelper.Flush();
-            var settings = TryGetGeneratorSettings();
+            var settings = EnvironmentSetup.TryGetGeneratorSettings();
             if (!settings.IsValid) {
                 return;
             }
-            var keywords = new List<string>[Documents.Count];
             TryLoadXmlDocs(importedAssets, Documents, FileNames, settings.Value);
 
             if (Documents.Count > 0) {
+                var keywords = new List<string>[Documents.Count];
                 await new XmlParserTask {
                     Documents = Documents,
                     Keywords = keywords
@@ -55,7 +47,7 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
                 }
 
                 var template = Template.Parse(scribanTemplate.text);
-                await new GenerateEnumTask {
+                await new GenerateConstantsTask {
                     Keywords = keywords,
                     FileNames = FileNames,
                     Settings = settings.Value,
@@ -75,7 +67,7 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
                             var doc = new XmlDocument();
                             doc.Load(FileUtils.AbsolutePath(path));
                             documents.Add(doc);
-                            fileNames.Add(treeAsset.name);
+                            fileNames.Add($"{treeAsset.name}Names");
                         });
                     }
                 }

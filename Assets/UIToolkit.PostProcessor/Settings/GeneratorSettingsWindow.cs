@@ -1,30 +1,107 @@
+using InitialPrefabs.TaskExtensions;
+using InitialPrefabs.UIToolkit.Constants;
+using InitialPrefabs.UIToolkit.PostProcessor.Tasks;
+using Scriban;
+using System.Collections.Generic;
+using System.Xml;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-public class GeneratorSettingsWindow : EditorWindow
-{
-    [SerializeField]
-    private VisualTreeAsset m_VisualTreeAsset = default;
+namespace InitialPrefabs.UIToolkit.PostProcessor {
 
-    [MenuItem("Window/UI Toolkit/GeneratorSettingsWindow")]
-    public static void ShowExample()
-    {
-        GeneratorSettingsWindow wnd = GetWindow<GeneratorSettingsWindow>();
-        wnd.titleContent = new GUIContent("GeneratorSettingsWindow");
-    }
+    public class GeneratorSettingsWindow : EditorWindow {
+        [SerializeField]
+        private VisualTreeAsset m_VisualTreeAsset = default;
 
-    public void CreateGUI()
-    {
-        // Each editor window contains a root VisualElement object
-        VisualElement root = rootVisualElement;
+        private SerializedObject serializedObject;
 
-        // VisualElements objects can contain other VisualElement following a tree hierarchy.
-        VisualElement label = new Label("Hello World! From C#");
-        root.Add(label);
+        [MenuItem("Window/UI Toolkit/GeneratorSettingsWindow")]
+        public static void ShowWindow() {
+            var wnd = GetWindow<GeneratorSettingsWindow>();
+            wnd.titleContent = new GUIContent("GeneratorSettingsWindow");
+        }
 
-        // Instantiate UXML
-        VisualElement labelFromUXML = m_VisualTreeAsset.Instantiate();
-        root.Add(labelFromUXML);
+        public void CreateGUI() {
+            EnvironmentSetup.Initialize();
+            var root = rootVisualElement;
+            var tree = m_VisualTreeAsset.Instantiate();
+            EnvironmentSetup.TryGetGeneratorSettings().Ok(settings => {
+                ReassignSerializedObject(settings);
+                tree.Q<TextField>(GeneratorSettingsWindowNames.PATTERN).BindProperty(serializedObject.FindProperty(nameof(GeneratorSettings.SearchPattern)));
+                tree.Q<TextField>(GeneratorSettingsWindowNames.REPLACEMENT).BindProperty(serializedObject.FindProperty(nameof(GeneratorSettings.ReplacementPattern)));
+
+                var group = tree.Q<VisualElement>(GeneratorSettingsWindowNames.GROUP);
+                var toggle = tree.Q<Toggle>(GeneratorSettingsWindowNames.AUTO_GENERATE);
+                toggle.BindProperty(serializedObject.FindProperty(nameof(GeneratorSettings.AutoGenerate)));
+
+                toggle.RegisterValueChangedCallback(changeEvt => {
+                    if (changeEvt.newValue != changeEvt.previousValue) {
+                        group.style.display = changeEvt.newValue ? DisplayStyle.None : DisplayStyle.Flex;
+                    }
+                });
+
+                var scriptPathField = tree.Q<TextField>(GeneratorSettingsWindowNames.SCRIPT_PATH);
+                scriptPathField.BindProperty(serializedObject.FindProperty(nameof(GeneratorSettings.ScriptGenerationPath)));
+                tree.Q<Button>(GeneratorSettingsWindowNames.SELECT_PATH).RegisterCallback<MouseUpEvent>(mouseUp => {
+                    var generationProp = serializedObject.FindProperty(nameof(GeneratorSettings.ScriptGenerationPath));
+                    var path = EditorUtility.OpenFolderPanel("Select Script Generation Path", generationProp.stringValue, string.Empty).Replace($"{Application.dataPath}/", string.Empty);
+                    if (path.Length > 0) {
+                        serializedObject.Update();
+                        generationProp.stringValue = path;
+                        serializedObject.ApplyModifiedPropertiesWithoutUndo();
+                        scriptPathField.value = path;
+                    }
+                });
+                var listView = tree.Q<ListView>(GeneratorSettingsWindowNames.QUEUE);
+                listView.BindProperty(serializedObject.FindProperty(nameof(GeneratorSettings.Queue)));
+                tree.Q<Button>(GeneratorSettingsWindowNames.GENERATE).RegisterCallback<MouseUpEvent>(async _ => {
+                    var treeAssets = settings.Queue;
+                    var count = treeAssets.Count;
+                    if (count > 0 && UIDocumentProcessor.TryFindScribanEnumTemplate(out var scribanTemplate)) {
+                        var documents = new List<XmlDocument>(count);
+                        var fileNames = new List<string>(count);
+                        var keywords = new List<string>[count];
+
+                        foreach (var asset in treeAssets) {
+                            var xml = new XmlDocument();
+                            xml.Load(FileUtils.AbsolutePath(AssetDatabase.GetAssetPath(asset)));
+                            documents.Add(xml);
+                            fileNames.Add($"{asset.name}Names");
+                        }
+
+                        await new XmlParserTask {
+                            Documents = documents,
+                            Keywords = keywords
+                        }.Schedule(treeAssets.Count, 4);
+
+                        var template = Template.Parse(scribanTemplate.text);
+                        await new GenerateConstantsTask {
+                            Keywords = keywords,
+                            FileNames = fileNames,
+                            Settings = settings,
+                            ScribanTemplate = template
+                        }.Schedule();
+
+                        // Clear the queue, rebind the property to avoid issues when redrawing the list
+                        settings.Queue.Clear();
+                        serializedObject.Update();
+                        serializedObject.ApplyModifiedPropertiesWithoutUndo();
+                        listView.BindProperty(serializedObject.FindProperty(nameof(GeneratorSettings.Queue)));
+                        listView.Rebuild();
+
+                        AssetDatabase.Refresh();
+                    }
+                });
+            });
+
+            root.Add(tree);
+        }
+
+        private void ReassignSerializedObject(GeneratorSettings settings) {
+            serializedObject?.Dispose();
+            serializedObject = new SerializedObject(settings);
+        }
     }
 }

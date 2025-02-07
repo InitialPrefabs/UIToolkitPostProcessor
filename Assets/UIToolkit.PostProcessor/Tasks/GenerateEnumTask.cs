@@ -3,10 +3,11 @@ using Scriban;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using UnityEngine;
 
 namespace InitialPrefabs.UIToolkit.PostProcessor.Tasks {
 
-    internal struct GenerateEnumTask : ITask {
+    internal struct GenerateConstantsTask : ITask {
 
         internal struct Pair {
             public string Key;
@@ -26,7 +27,7 @@ namespace InitialPrefabs.UIToolkit.PostProcessor.Tasks {
                 var keywords = Keywords[i];
                 ProcessPairs(ref pairs, keywords, regex, Settings.ReplacementPattern);
                 var text = ScribanTemplate.Render(new { Name = fileName, Pairs = pairs });
-                File.WriteAllText(Path.Combine(Settings.ScriptGenerationPath, $"{fileName}.g.cs"), text);
+                File.WriteAllText(Path.Combine(Application.dataPath, Settings.ScriptGenerationPath, $"{fileName}.g.cs"), text);
             }
         }
 

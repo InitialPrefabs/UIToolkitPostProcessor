@@ -13,7 +13,9 @@ MonoBehaviour:
   m_Name: GeneratorSettings
   m_EditorClassIdentifier: 
   SearchPattern: '[-\. ]'
-  ReplacementPattern: '-'
-  ScriptGenerationPath: 
-  AutoSave: 0
-  Queue: []
+  ReplacementPattern: _
+  ScriptGenerationPath: UIToolkit.PostProcessor/Constants
+  AutoGenerate: 0
+  Queue:
+  - {fileID: 9197481963319205126, guid: 5c14cba426a694d4e8b1f63bfb2bebc3, type: 3}
+  - {fileID: 9197481963319205126, guid: 01964bbcdd9dbbe409d07b6f8ba262f7, type: 3}

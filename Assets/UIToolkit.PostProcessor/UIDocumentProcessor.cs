@@ -9,6 +9,10 @@ using UnityEngine.UIElements;
 
 namespace InitialPrefabs.UIToolkit.PostProcessor {
 
+    /// <summary>
+    /// Primary Asset Importer for <see cref="VisualTreeAsset"/>. Parses all <see cref="VisualTreeAsset"/> as 
+    /// <see cref="XmlDocument"/>s and collects all "name" attributes' values.
+    /// </summary>
     public class UIDocumentProcessor : AssetPostprocessor {
         static readonly List<XmlDocument> Documents = new List<XmlDocument>(5);
         static readonly List<string> FileNames = new List<string>(5);

@@ -1,11 +1,21 @@
 <engine:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:engine="UnityEngine.UIElements" xmlns:editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
-    <engine:TextField label="Search Pattern" name="pattern" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="SearchPattern" tooltip="A series of characters to look for when attempting to replace name values. This does not manipulate the name values in anyway and is to only help generate the C# code. (E.g: auto-generate will become the variable AUTO_GENERATE.)" />
-    <engine:TextField label="Replacement Pattern" name="replacement" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="ReplacementPattern" />
-    <engine:Toggle label="Auto Generate" name="auto-generate" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="AutoGenerate" tooltip="Should code generate automatically run after import? If not, you will need to manually flush the queue and generate all of the code with the &quot;Flush Queue &amp; Generate&quot; button below." />
-    <engine:TextField label="Script Generation Path" name="script-path" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="ScriptGenerationPath" enabled="false" />
-    <engine:Button text="Select Path" name="select-path" />
-    <engine:VisualElement name="group" style="flex-grow: 1;">
-        <engine:ListView name="queue" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="Queue" enabled="false" tooltip="A list of queued VisualTreeAssets to post process." header-title="Queue" />
-        <engine:Button text="Flush Queue &amp; Generate" name="generate" />
+    <engine:Label text="Text Replacement" style="-unity-text-align: upper-center; -unity-font-style: bold; font-size: 20px;" />
+    <engine:VisualElement style="flex-grow: 0; flex-direction: row; flex-shrink: 1; margin-bottom: 15px;">
+        <engine:TextField label="Search Pattern" name="pattern" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="SearchPattern" tooltip="A series of characters (REGEX) to look for when attempting to replace name values. This does not manipulate the name values in anyway and is to only help generate the C# code. (E.g: auto-generate will become the variable AUTO_GENERATE.)" style="width: 45%;" />
+        <engine:Label text="→" style="-unity-text-align: middle-center; width: 8%; font-size: 18px; -unity-font-style: bold;" />
+        <engine:TextField label="Replacement Pattern" name="replacement" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="ReplacementPattern" tooltip="The replacement characters" style="width: 45%;" />
+    </engine:VisualElement>
+    <engine:VisualElement style="flex-grow: 1; margin-bottom: 15px;">
+        <engine:Label text="Output Path" style="align-items: auto; -unity-text-align: upper-center; font-size: 20px; -unity-font-style: bold;" />
+        <engine:TextField label="Script Generation Path" name="script-path" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="ScriptGenerationPath" enabled="false" />
+        <engine:Button text="Select Path" name="select-path" />
+    </engine:VisualElement>
+    <engine:VisualElement style="flex-grow: 1;">
+        <engine:Label text="Code Generation Queue" style="-unity-text-align: upper-center; font-size: 20px; -unity-font-style: bold;" />
+        <engine:Toggle label="Auto Generate" name="auto-generate" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="AutoGenerate" tooltip="Should code generate automatically run after save/import? If not, you will need to manually flush the queue and generate all of the code with the &quot;Flush Queue &amp; Generate&quot; button below." />
+        <engine:VisualElement name="group" style="flex-grow: 1;">
+            <engine:ListView name="queue" data-source-type="InitialPrefabs.UIToolkit.PostProcessor.GeneratorSettings, UIToolkit.PostProcessor" data-source-path="Queue" enabled="false" tooltip="A list of queued VisualTreeAssets to post process." header-title="Queue" allow-add="false" allow-remove="false" show-add-remove-footer="false" show-foldout-header="true" horizontal-scrolling="false" show-border="true" />
+            <engine:Button text="Flush Queue &amp; Generate" name="generate" />
+        </engine:VisualElement>
     </engine:VisualElement>
 </engine:UXML>

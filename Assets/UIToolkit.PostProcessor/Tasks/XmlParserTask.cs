@@ -15,7 +15,7 @@ namespace InitialPrefabs.UIToolkit.PostProcessor.Tasks {
 
             Recurse(document, node => {
                 foreach (XmlAttribute xmlAttribute in node.Attributes) {
-                    if (xmlAttribute.Name == "name") {
+                    if (xmlAttribute.Name == "name" && xmlAttribute.Value.Length > 0) {
                         keywords.Add(xmlAttribute.Value);
                     }
                 }

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace InitialPrefabs.UIToolkit.PostProcessor {
 
     /// <summary>
-    /// Custom importer to read Scriban Templates as a TextAsset.
+    /// Custom importer to read Scriban Templates as a <see cref="TextAsset"/>.
     /// </summary>
     [ScriptedImporter(1, "scriban-cs")]
     internal class ScribanAssetImporter : ScriptedImporter {

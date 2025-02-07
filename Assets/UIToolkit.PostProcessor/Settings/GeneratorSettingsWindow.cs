@@ -20,7 +20,8 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
         [MenuItem("Window/UI Toolkit/GeneratorSettingsWindow")]
         public static void ShowWindow() {
             var wnd = GetWindow<GeneratorSettingsWindow>();
-            wnd.titleContent = new GUIContent("GeneratorSettingsWindow");
+            wnd.minSize = new Vector2(400, 275);
+            wnd.titleContent = new GUIContent("Code Generator Settings");
         }
 
         public void CreateGUI() {
@@ -34,11 +35,13 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
 
                 var group = tree.Q<VisualElement>(GeneratorSettingsWindowNames.GROUP);
                 var toggle = tree.Q<Toggle>(GeneratorSettingsWindowNames.AUTO_GENERATE);
-                toggle.BindProperty(serializedObject.FindProperty(nameof(GeneratorSettings.AutoGenerate)));
+                var autoGenerateProp = serializedObject.FindProperty(nameof(GeneratorSettings.AutoGenerate));
+                toggle.BindProperty(autoGenerateProp);
+                group.SetEnabled(!autoGenerateProp.boolValue);
 
                 toggle.RegisterValueChangedCallback(changeEvt => {
                     if (changeEvt.newValue != changeEvt.previousValue) {
-                        group.style.display = changeEvt.newValue ? DisplayStyle.None : DisplayStyle.Flex;
+                        group.SetEnabled(changeEvt.newValue);
                     }
                 });
 

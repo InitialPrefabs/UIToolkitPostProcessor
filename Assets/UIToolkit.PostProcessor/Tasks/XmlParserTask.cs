@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml;
 
-namespace InitialPrefabs.UIToolkit.PostProcessor {
+namespace InitialPrefabs.UIToolkit.PostProcessor.Tasks {
     internal struct XmlParserTask : ITaskParallelFor {
 
         public IReadOnlyList<XmlDocument> Documents;

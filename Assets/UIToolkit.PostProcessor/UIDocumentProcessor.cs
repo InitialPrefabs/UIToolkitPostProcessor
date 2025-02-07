@@ -1,4 +1,5 @@
 using InitialPrefabs.TaskExtensions;
+using InitialPrefabs.UIToolkit.PostProcessor.Tasks;
 using Scriban;
 using System.Collections.Generic;
 using System.Xml;
@@ -25,12 +26,24 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
             return false;
         }
 
+        private static Option<GeneratorSettings> TryGetGeneratorSettings() {
+            var guids = AssetDatabase.FindAssets("t: GeneratorSettings GeneratorSettings");
+            if (guids.Length > 0) {
+                return Option<GeneratorSettings>.Some(AssetDatabase.LoadAssetAtPath<GeneratorSettings>(AssetDatabase.GUIDToAssetPath(guids[0])));
+            }
+            return default;
+        }
+
         private static async void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths, bool didDomainReload) {
             TaskHelper.Flush();
-            LoadXmlDocs(importedAssets, Documents, FileNames);
-            if (Documents.Count > 0) {
-                var keywords = new List<string>[Documents.Count];
+            var settings = TryGetGeneratorSettings();
+            if (!settings.IsValid) {
+                return;
+            }
+            var keywords = new List<string>[Documents.Count];
+            TryLoadXmlDocs(importedAssets, Documents, FileNames, settings.Value);
 
+            if (Documents.Count > 0) {
                 await new XmlParserTask {
                     Documents = Documents,
                     Keywords = keywords
@@ -45,26 +58,40 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
                 await new GenerateEnumTask {
                     Keywords = keywords,
                     FileNames = FileNames,
-                    OutputDirectory = Application.dataPath,
+                    Settings = settings.Value,
                     ScribanTemplate = template
                 }.Schedule();
-
                 AssetDatabase.Refresh();
             }
         }
 
-        private static void LoadXmlDocs(string[] importedAssets, List<XmlDocument> documents, List<string> fileNames) {
-            documents.Clear();
-            fileNames.Clear();
-            foreach (var path in importedAssets) {
-                if (path.SimpleEndsWith(".uxml")) {
-                    new Option<VisualTreeAsset>(AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path)).Ok(treeAsset => {
-                        var doc = new XmlDocument();
-                        doc.Load(FileUtils.AbsolutePath(path));
-                        documents.Add(doc);
-                        fileNames.Add(treeAsset.name);
-                    });
+        private static void TryLoadXmlDocs(string[] importedAssets, List<XmlDocument> documents, List<string> fileNames, GeneratorSettings settings) {
+            if (settings.AutoGenerate) {
+                documents.Clear();
+                fileNames.Clear();
+                foreach (var path in importedAssets) {
+                    if (path.SimpleEndsWith(".uxml")) {
+                        new Option<VisualTreeAsset>(AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path)).Ok(treeAsset => {
+                            var doc = new XmlDocument();
+                            doc.Load(FileUtils.AbsolutePath(path));
+                            documents.Add(doc);
+                            fileNames.Add(treeAsset.name);
+                        });
+                    }
                 }
+            } else {
+                foreach (var path in importedAssets) {
+                    if (path.SimpleEndsWith(".uxml")) {
+                        new Option<VisualTreeAsset>(AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path)).Ok(treeAsset => {
+                            if (!settings.Queue.Contains(treeAsset)) {
+                                settings.Queue.Add(treeAsset);
+                            }
+                        });
+                    }
+                }
+                using var so = new SerializedObject(settings);
+                so.Update();
+                so.ApplyModifiedPropertiesWithoutUndo();
             }
         }
     }

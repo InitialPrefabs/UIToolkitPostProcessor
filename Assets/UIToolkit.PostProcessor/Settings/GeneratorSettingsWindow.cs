@@ -17,7 +17,7 @@ namespace InitialPrefabs.UIToolkit.PostProcessor {
 
         private SerializedObject serializedObject;
 
-        [MenuItem("Window/UI Toolkit/GeneratorSettingsWindow")]
+        [MenuItem("Tools/InitialPrefabs/GeneratorSettingsWindow")]
         public static void ShowWindow() {
             var wnd = GetWindow<GeneratorSettingsWindow>();
             wnd.minSize = new Vector2(400, 275);
